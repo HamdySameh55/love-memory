@@ -3,9 +3,16 @@ import axios from 'axios';
 // ── Base URL (Railway Backend) ─────────────────────────────
 const BASE_URL = "https://love-memory-production.up.railway.app";
 
-// ── Axios Instance (أفضل من التكرار) ───────────────────────
+// ── Axios Instance ─────────────────────────────────────────
 const api = axios.create({
   baseURL: BASE_URL,
+});
+
+// ── Token Interceptor ──────────────────────────────────────
+api.interceptors.request.use(config => {
+  const token = localStorage.getItem('token');
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  return config;
 });
 
 // ── Memories ───────────────────────────────────────────────
@@ -28,7 +35,7 @@ export const updateMemory = (id, formData) =>
 export const deleteMemory = (id) =>
   api.delete(`/api/memories/${id}`).then(r => r.data);
 
-// ── Notes ────────────────────────────────────────────────
+// ── Notes ──────────────────────────────────────────────────
 export const getNotes = () =>
   api.get('/api/notes').then(r => r.data);
 

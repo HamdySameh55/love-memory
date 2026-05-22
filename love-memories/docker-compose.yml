@@ -1,0 +1,47 @@
+version: '3.8'
+
+services:
+  mongodb:
+    image: mongo:7
+    container_name: love-memories-db
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+
+  backend:
+    build: ./backend
+    container_name: love-memories-api
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    depends_on:
+      - mongodb
+    environment:
+      - MONGO_URI=mongodb://mongodb:27017/love-memories
+      - JWT_SECRET=change_this_to_something_secret_and_long
+      - JWT_EXPIRES_IN=7d
+      - ADMIN_EMAIL=admin@love.com
+      - ADMIN_PASSWORD=Love@2024
+      - VIEWER_TOKEN=1272004
+      - CLIENT_URL=http://localhost:3000
+      # Cloudinary (optional - leave blank to use local storage)
+      - CLOUDINARY_CLOUD_NAME=
+      - CLOUDINARY_API_KEY=
+      - CLOUDINARY_API_SECRET=
+    volumes:
+      - uploads:/app/uploads
+
+  frontend:
+    build: ./frontend
+    container_name: love-memories-ui
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+
+volumes:
+  mongo_data:
+  uploads:

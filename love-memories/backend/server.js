@@ -3,53 +3,75 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const dotenv = require('dotenv');
 const path = require('path');
+const bcrypt = require('bcryptjs');
 
 dotenv.config();
-console.log("🔥 ENV FILE LOADED");
-console.log("VIEWER_TOKEN =", process.env.VIEWER_TOKEN);
-console.log("MONGO_URI =", process.env.MONGO_URI?.slice(0,30));
 
 const app = express();
 
-// ── Middleware ────────────────────────────────────────────────────────────────
+// ── Middleware ─────────────────────────────
 app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:3000',
+  origin: process.env.CLIENT_URL || '*',
   credentials: true,
 }));
+
 app.use(express.json());
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// ── Routes ────────────────────────────────────────────────────────────────────
-app.use('/api/auth',     require('./routes/auth'));
+// ── Routes ────────────────────────────────
+app.use('/api/auth', require('./routes/auth'));
 app.use('/api/memories', require('./routes/memories'));
-app.use('/api/notes',    require('./routes/notes'));
+app.use('/api/notes', require('./routes/notes'));
 
-// ── Health check ──────────────────────────────────────────────────────────────
-app.get('/api/health', (req, res) => res.json({ status: 'OK 💖', time: new Date() }));
+// ── Health check ───────────────────────────
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'OK 💖', time: new Date() });
+});
 
-// ── Connect DB & start ────────────────────────────────────────────────────────
+// ── Serve React (IMPORTANT) ───────────────
+const frontendPath = path.join(__dirname, '../frontend/build');
+
+if (process.env.NODE_ENV === 'production') {
+  app.use(express.static(frontendPath));
+
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(frontendPath, 'index.html'));
+  });
+}
+
+// ── MongoDB ───────────────────────────────
 mongoose.connect(process.env.MONGO_URI)
   .then(async () => {
-    console.log('✅  MongoDB connected');
-    await seedAdmin();
-    const PORT = process.env.PORT || 5000;
-    app.listen(PORT, () => console.log(`💖  Server running on port ${PORT}`));
-  })
-  .catch(err => { console.error('❌  MongoDB error:', err); process.exit(1); });
+    console.log('✅ MongoDB connected');
 
-// ── Seed admin user on first run ──────────────────────────────────────────────
+    await seedAdmin();
+
+    const PORT = process.env.PORT || 5000;
+    app.listen(PORT, () => {
+      console.log(`💖 Server running on port ${PORT}`);
+    });
+  })
+  .catch(err => {
+    console.error('❌ MongoDB error:', err);
+    process.exit(1);
+  });
+
+// ── Seed Admin ────────────────────────────
 async function seedAdmin() {
   const User = require('./models/User');
-  const bcrypt = require('bcryptjs');
+
   const existing = await User.findOne({ role: 'admin' });
+
   if (!existing) {
     const hash = await bcrypt.hash(process.env.ADMIN_PASSWORD || 'Love@2024', 12);
+
     await User.create({
       email: process.env.ADMIN_EMAIL || 'admin@love.com',
       password: hash,
       role: 'admin',
       name: 'Admin',
     });
-    console.log('✅  Admin user seeded →', process.env.ADMIN_EMAIL);
+
+    console.log('✅ Admin created');
   }
 }

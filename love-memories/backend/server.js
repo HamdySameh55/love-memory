@@ -16,30 +16,32 @@ app.use(cors({
 }));
 
 app.use(express.json());
+
+// static uploads
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// ── Routes ────────────────────────────────
+// ── API Routes ─────────────────────────────
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/memories', require('./routes/memories'));
 app.use('/api/notes', require('./routes/notes'));
 
-// ── Health check ───────────────────────────
+// ── Health Check ───────────────────────────
 app.get('/api/health', (req, res) => {
   res.json({ status: 'OK 💖', time: new Date() });
 });
 
-// ── Serve React (IMPORTANT) ───────────────
+// ── Serve React Frontend (IMPORTANT) ───────
 const frontendPath = path.join(__dirname, '../frontend/build');
 
-if (process.env.NODE_ENV === 'production') {
-  app.use(express.static(frontendPath));
+// IMPORTANT: always serve frontend (no production شرط)
+app.use(express.static(frontendPath));
 
-  app.get('*', (req, res) => {
-    res.sendFile(path.join(frontendPath, 'index.html'));
-  });
-}
+// fallback to React router
+app.get('*', (req, res) => {
+  res.sendFile(path.join(frontendPath, 'index.html'));
+});
 
-// ── MongoDB ───────────────────────────────
+// ── MongoDB Connect ─────────────────────────
 mongoose.connect(process.env.MONGO_URI)
   .then(async () => {
     console.log('✅ MongoDB connected');
@@ -56,14 +58,17 @@ mongoose.connect(process.env.MONGO_URI)
     process.exit(1);
   });
 
-// ── Seed Admin ────────────────────────────
+// ── Seed Admin ──────────────────────────────
 async function seedAdmin() {
   const User = require('./models/User');
 
   const existing = await User.findOne({ role: 'admin' });
 
   if (!existing) {
-    const hash = await bcrypt.hash(process.env.ADMIN_PASSWORD || 'Love@2024', 12);
+    const hash = await bcrypt.hash(
+      process.env.ADMIN_PASSWORD || 'Love@2024',
+      12
+    );
 
     await User.create({
       email: process.env.ADMIN_EMAIL || 'admin@love.com',
